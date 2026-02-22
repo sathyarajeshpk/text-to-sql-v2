@@ -27,3 +27,28 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #64748b;
 }
+
+.btn {
+  background: #1e293b;
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.btn-blue {
+  background: #2563eb;
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.btn-green {
+  background: #16a34a;
+  padding: 8px 16px;
+  border-radius: 6px;
+}
+
+.card {
+  background: #0f172a;
+  padding: 20px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
