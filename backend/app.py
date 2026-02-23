@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from groq import Groq
@@ -12,13 +12,21 @@ import re
 
 from pandasql import sqldf
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import Session
 
+# ================= AUTH IMPORTS =================
+
+from database import SessionLocal, engine as user_engine, Base
+import models, auth
 
 # ================= LOAD ENV =================
 
 load_dotenv()
 
 app = FastAPI()
+
+# Create user tables
+Base.metadata.create_all(bind=user_engine)
 
 # ================= CORS =================
 
@@ -29,6 +37,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ================= DB DEPENDENCY =================
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # ================= AI CLIENT =================
 
@@ -44,11 +61,62 @@ sessions = {}
 def home():
     return {"message": "API Running"}
 
+# ================= AUTH =================
+
+@app.post("/api/signup")
+def signup(data: dict, db: Session = Depends(get_db)):
+
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name")
+
+    if not email or not password:
+        raise HTTPException(400, "Email and password required")
+
+    existing = db.query(models.User).filter(models.User.email == email).first()
+
+    if existing:
+        raise HTTPException(400, "User already exists")
+
+    hashed_pw = auth.hash_password(password)
+
+    user = models.User(
+        email=email,
+        name=name,
+        password_hash=hashed_pw
+    )
+
+    db.add(user)
+    db.commit()
+
+    token = auth.create_token(email)
+
+    return {"access_token": token}
+
+
+@app.post("/api/login")
+def login(data: dict, db: Session = Depends(get_db)):
+
+    email = data.get("email")
+    password = data.get("password")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+
+    if not user or not auth.verify_password(password, user.password_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+    token = auth.create_token(email)
+
+    return {"access_token": token}
+
 
 # ================= CSV UPLOAD =================
 
 @app.post("/api/upload/csv-multi")
-async def upload_csv_multi(files: List[UploadFile] = File(...)):
+async def upload_csv_multi(
+    files: List[UploadFile] = File(...),
+    user_email: str = Depends(auth.verify_token)
+):
 
     session_id = str(uuid.uuid4())
     schema = {}
@@ -69,7 +137,8 @@ async def upload_csv_multi(files: List[UploadFile] = File(...)):
     sessions[session_id] = {
         "schema": schema,
         "dataframes": dataframes,
-        "mode": "csv"
+        "mode": "csv",
+        "user": user_email
     }
 
     return {
@@ -81,7 +150,10 @@ async def upload_csv_multi(files: List[UploadFile] = File(...)):
 # ================= DATABASE CONNECT =================
 
 @app.post("/api/connect/database")
-def connect_database(config: dict):
+def connect_database(
+    config: dict,
+    user_email: str = Depends(auth.verify_token)
+):
 
     db_type = config.get("db_type")
     host = config.get("host")
@@ -102,7 +174,6 @@ def connect_database(config: dict):
             return {"error": "Unsupported database"}
 
         engine = create_engine(url)
-
         inspector = inspect(engine)
 
         schema = {}
@@ -124,7 +195,8 @@ def connect_database(config: dict):
         sessions[session_id] = {
             "schema": schema,
             "engine": engine,
-            "mode": "database"
+            "mode": "database",
+            "user": user_email
         }
 
         return {
@@ -139,7 +211,10 @@ def connect_database(config: dict):
 # ================= QUERY =================
 
 @app.post("/api/query")
-def run_query(data: dict):
+def run_query(
+    data: dict,
+    user_email: str = Depends(auth.verify_token)
+):
 
     session_id = data.get("session_id")
     question = data.get("query")
@@ -177,8 +252,6 @@ Return ONLY valid JSON:
 
     content = completion.choices[0].message.content
 
-    # ---------- Extract JSON ----------
-
     try:
         json_match = re.search(r"\{.*\}", content, re.DOTALL)
         json_str = json_match.group()
@@ -191,8 +264,6 @@ Return ONLY valid JSON:
     except Exception as e:
         return {"error": f"AI parsing failed: {str(e)}", "raw": content}
 
-    # ---------- Allow only SELECT ----------
-
     if not sql.strip().lower().startswith("select"):
         return {
             "sql": sql,
@@ -203,8 +274,6 @@ Return ONLY valid JSON:
                 {"message": "Data modification queries are not supported."}
             ]
         }
-
-    # ---------- Execute Query ----------
 
     try:
 
