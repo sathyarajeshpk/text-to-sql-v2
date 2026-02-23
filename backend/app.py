@@ -1,7 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from groq import Groq
 
 from typing import List
 import pandas as pd
@@ -32,7 +31,7 @@ app.add_middleware(
 
 # ================= AI CLIENT =================
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+#client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ================= SESSION STORAGE =================
 
