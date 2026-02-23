@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from groq import Groq
@@ -7,12 +7,16 @@ import os
 from typing import List
 import pandas as pd
 import uuid
-import os
 import json
 import re
 
 from pandasql import sqldf
 from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import Session
+
+# ===== AUTH IMPORTS =====
+from database import SessionLocal, engine, Base
+import models, auth
 
 
 # ================= LOAD ENV =================
@@ -20,6 +24,9 @@ from sqlalchemy import create_engine, inspect, text
 load_dotenv()
 
 app = FastAPI()
+
+# Create user table
+Base.metadata.create_all(bind=engine)
 
 # ================= CORS =================
 
@@ -31,10 +38,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ================= DB DEPENDENCY =================
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
 # ================= AI CLIENT =================
 
 client = None
 groq_key = os.getenv("GROQ_API_KEY")
+
+if groq_key:
+    try:
+        client = Groq(api_key=groq_key)
+    except Exception as e:
+        print("Groq initialization failed:", e)
+        client = None
+
 
 # ================= SESSION STORAGE =================
 
@@ -45,6 +70,55 @@ sessions = {}
 @app.get("/")
 def home():
     return {"message": "API Running"}
+
+
+# ================= AUTH APIs =================
+
+@app.post("/api/signup")
+def signup(data: dict, db: Session = Depends(get_db)):
+
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name")
+
+    if not email or not password:
+        raise HTTPException(400, "Email and password required")
+
+    existing = db.query(models.User).filter(models.User.email == email).first()
+
+    if existing:
+        raise HTTPException(400, "User already exists")
+
+    hashed_pw = auth.hash_password(password)
+
+    user = models.User(
+        email=email,
+        name=name,
+        password_hash=hashed_pw
+    )
+
+    db.add(user)
+    db.commit()
+
+    token = auth.create_token(email)
+
+    return {"access_token": token}
+
+
+@app.post("/api/login")
+def login(data: dict, db: Session = Depends(get_db)):
+
+    email = data.get("email")
+    password = data.get("password")
+
+    user = db.query(models.User).filter(models.User.email == email).first()
+
+    if not user or not auth.verify_password(password, user.password_hash):
+        raise HTTPException(401, "Invalid credentials")
+
+    token = auth.create_token(email)
+
+    return {"access_token": token}
 
 
 # ================= CSV UPLOAD =================
@@ -103,9 +177,9 @@ def connect_database(config: dict):
         else:
             return {"error": "Unsupported database"}
 
-        engine = create_engine(url)
+        engine_db = create_engine(url)
 
-        inspector = inspect(engine)
+        inspector = inspect(engine_db)
 
         schema = {}
 
@@ -125,7 +199,7 @@ def connect_database(config: dict):
 
         sessions[session_id] = {
             "schema": schema,
-            "engine": engine,
+            "engine": engine_db,
             "mode": "database"
         }
 
@@ -152,6 +226,10 @@ def run_query(data: dict):
         return {"error": "Invalid session"}
 
     schema = session.get("schema")
+
+    # ---------- AI disabled fallback ----------
+    if not client:
+        return {"error": "AI client not configured"}
 
     prompt = f"""
 You are an expert data analyst.
@@ -212,9 +290,9 @@ Return ONLY valid JSON:
 
         if session.get("mode") == "database":
 
-            engine = session.get("engine")
+            engine_db = session.get("engine")
 
-            with engine.connect() as conn:
+            with engine_db.connect() as conn:
                 result = conn.execute(text(sql))
                 rows = result.fetchall()
                 columns = result.keys()
