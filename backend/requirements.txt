@@ -3,6 +3,6 @@ uvicorn==0.30.0
 sqlalchemy==2.0.30
 passlib[bcrypt]==1.7.4
 python-jose==3.3.0
-duckdb==1.0.0
+duckdb==0.10.2
 polars-lts-cpu==0.20.31
 python-multipart==0.0.9
