@@ -159,12 +159,15 @@ async def query(req: Dict):
 
     try:
 
-        con = duckdb.connect()
+        # con = duckdb.connect()
 
-        for name, df in tables.items():
-            con.register(name, df)
+        # for name, df in tables.items():
+        #     con.register(name, df)
 
-        result = con.execute(sql).fetchdf()
+        # result = con.execute(sql).fetchdf()
+        df = list(tables.values())[0]
+
+        result = df.head(100).to_pandas()
         data = result.to_dict(orient="records")
 
         return {
