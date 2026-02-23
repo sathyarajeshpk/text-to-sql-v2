@@ -4,4 +4,5 @@ sqlalchemy==2.0.30
 passlib[bcrypt]==1.7.4
 python-jose==3.3.0
 polars-lts-cpu==0.20.31
+pandas==2.2.2
 python-multipart==0.0.9
