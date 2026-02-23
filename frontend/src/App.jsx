@@ -1,42 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Login from "./Login";
-import Signup from "./Signup";
-
-function Dashboard() {
-  return <h2>Welcome to Dashboard 🚀</h2>;
-}
+import Dashboard from "./Dashboard";
 
 export default function App() {
-  const [page, setPage] = useState("login");
-  const [loggedIn, setLoggedIn] = useState(
-    !!localStorage.getItem("token")
-  );
+  const [token, setToken] = useState(null);
 
-  if (loggedIn) return <Dashboard />;
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (t) setToken(t);
+  }, []);
 
-  return (
-    <div>
-      {page === "login" ? (
-        <>
-          <Login onLogin={() => setLoggedIn(true)} />
-          <p>
-            No account?{" "}
-            <button onClick={() => setPage("signup")}>
-              Signup
-            </button>
-          </p>
-        </>
-      ) : (
-        <>
-          <Signup onSignup={() => setLoggedIn(true)} />
-          <p>
-            Have account?{" "}
-            <button onClick={() => setPage("login")}>
-              Login
-            </button>
-          </p>
-        </>
-      )}
-    </div>
-  );
+  const handleLogin = () => {
+    const t = localStorage.getItem("token");
+    setToken(t);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+  };
+
+  if (!token) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  return <Dashboard onLogout={handleLogout} />;
 }
