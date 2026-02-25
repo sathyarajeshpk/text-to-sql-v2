@@ -32,7 +32,7 @@ Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # allow all for now
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -71,38 +71,46 @@ sessions = {}
 def home():
     return {"message": "API Running"}
 
+@app.get("/api/health")
+def health():
+    return {"status": "ok"}
+
 
 # ================= AUTH APIs =================
 
 @app.post("/api/signup")
-def signup(data: dict, db: Session = Depends(get_db)):
+def signup(data: dict):
 
     email = data.get("email")
     password = data.get("password")
-    name = data.get("name")
 
     if not email or not password:
-        raise HTTPException(400, "Email and password required")
+        raise HTTPException(status_code=400, detail="Email and password required")
+
+    db = SessionLocal()
 
     existing = db.query(models.User).filter(models.User.email == email).first()
 
     if existing:
-        raise HTTPException(400, "User already exists")
+        raise HTTPException(status_code=400, detail="User already exists")
 
-    hashed_pw = auth.hash_password(password)
+    hashed_pw = auth.hash_password(str(password))   # 🔥 ensure string
 
     user = models.User(
-        email=email,
-        name=name,
-        password_hash=hashed_pw
-    )
+    email=email,
+    password_hash=hashed_pw
+)
 
     db.add(user)
     db.commit()
+    db.close()
 
     token = auth.create_token(email)
 
-    return {"access_token": token}
+    return {
+        "message": "User created",
+        "token": token
+    }
 
 
 @app.post("/api/login")
