@@ -1,54 +1,79 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
 body {
   margin: 0;
-  background-color: #020617;
-  color: #e2e8f0;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: Inter, sans-serif;
+  background: #0b1220;
+  color: white;
 }
 
-/* Custom scrollbar */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.page {
+  padding: 20px;
 }
 
-::-webkit-scrollbar-track {
-  background: #1e293b;
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #475569;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
-}
-
-.btn {
-  background: #1e293b;
-  padding: 8px 16px;
-  border-radius: 6px;
-}
-
-.btn-blue {
-  background: #2563eb;
-  padding: 8px 16px;
-  border-radius: 6px;
-}
-
-.btn-green {
-  background: #16a34a;
-  padding: 8px 16px;
-  border-radius: 6px;
+.layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
 }
 
 .card {
-  background: #0f172a;
-  padding: 20px;
+  background: #111827;
+  padding: 15px;
   border-radius: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+input,
+textarea {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  padding: 10px;
+  border-radius: 6px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+}
+
+.tabs button {
+  margin-right: 10px;
+}
+
+.schemaCard {
+  background: #1f2937;
+  padding: 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.historyItem {
+  background: #1f2937;
+  padding: 6px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  border: 1px solid #374151;
+  padding: 6px;
 }

@@ -17,30 +17,32 @@ export default function Login({ onLogin, switchSignup }) {
   };
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Login</h2>
+    <div className="page">
+      <div className="card" style={{ maxWidth: 400, margin: "auto" }}>
+        <h2>Login</h2>
 
-      <input
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+        <input
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
 
-      <input
-        placeholder="Password"
-        type="password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        <input
+          placeholder="Password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
 
-      <button onClick={handleLogin}>Login</button>
+        <button onClick={handleLogin}>Login</button>
 
-      <p>
-        No account?{" "}
-        <button onClick={switchSignup}>
-          Signup
-        </button>
-      </p>
+        <p>
+          No account?{" "}
+          <button onClick={switchSignup}>
+            Signup
+          </button>
+        </p>
+      </div>
     </div>
   );
 }
