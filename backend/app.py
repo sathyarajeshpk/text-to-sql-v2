@@ -53,12 +53,15 @@ def get_db():
 def get_ai_client():
     groq_key = os.getenv("GROQ_API_KEY")
 
+    print("DEBUG GROQ KEY:", bool(groq_key))
+
     if not groq_key:
-        print("❌ GROQ_API_KEY not found in environment")
+        print("❌ GROQ_API_KEY not found")
         return None
 
     try:
         client = Groq(api_key=groq_key)
+        print("✅ Groq initialized")
         return client
     except Exception as e:
         print("❌ Groq initialization failed:", e)
@@ -238,7 +241,7 @@ def run_query(data: dict):
 
     client = get_ai_client()
 
-    if not client:
+    if client is None:
         return {"error": "AI client not configured — check GROQ_API_KEY"}
 
     prompt = f"""
