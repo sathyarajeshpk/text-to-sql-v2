@@ -118,24 +118,35 @@ export default function Dashboard({ onLogout }) {
 
   // ---------- SCHEMA ----------
 
-  const renderSchema = () => {
-    if (!schema || typeof schema !== "object") {
-      return <div>No schema</div>;
-    }
+const renderSchema = () => {
+  if (!schema || typeof schema !== "object") {
+    return <div>No schema</div>;
+  }
 
-    return Object.keys(schema).map((table) => {
-      const cols = schema[table];
+  return Object.keys(schema).map((table) => {
+    const cols = schema[table];
 
-      return (
-        <div key={table} className="schemaCard">
-          <b>{table}</b>
+    return (
+      <div key={table} className="schemaCard">
+        <b>{table}</b>
 
-          {Array.isArray(cols) &&
-            cols.map((c, i) => <div key={i}>{String(c)}</div>)}
-        </div>
-      );
-    });
-  };
+        {Array.isArray(cols) &&
+          cols.map((col, i) => {
+            if (typeof col === "object") {
+              return (
+                <div key={i}>
+                  {col.name || col.column || "column"}{" "}
+                  ({col.type || col.dtype || ""})
+                </div>
+              );
+            }
+
+            return <div key={i}>{String(col)}</div>;
+          })}
+      </div>
+    );
+  });
+};
 
   return (
     <div className="page">
