@@ -1,41 +1,37 @@
 import { useState } from "react";
-import {
-  connectDatabase,
-  uploadCSV,
-  runQuery
-} from "./api";
+import { connectDatabase, uploadCSV, runQuery } from "./api";
 
 export default function Dashboard({ onLogout }) {
   const [tab, setTab] = useState("database");
   const [sessionId, setSessionId] = useState(null);
-  const [schema, setSchema] = useState(null);
+  const [schema, setSchema] = useState({});
+  const [question, setQuestion] = useState("");
+  const [result, setResult] = useState(null);
+  const [sql, setSQL] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [dbConfig, setDbConfig] = useState({
     host: "",
     port: "",
     database: "",
     user: "",
-    password: ""
+    password: "",
   });
 
-  const [question, setQuestion] = useState("");
-  const [result, setResult] = useState(null);
-  const [sql, setSQL] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState([]);
-
-  // ---------- CONNECT DB ----------
+  // ---------- CONNECT DATABASE ----------
 
   const handleConnectDB = async () => {
     try {
       const res = await connectDatabase(dbConfig);
 
-      if (res.session_id) setSessionId(res.session_id);
-      if (res.schema) setSchema(res.schema);
+      console.log("DB RESPONSE:", res);
 
+      setSessionId(res?.session_id || null);
+      setSchema(res?.schema || res?.tables || {});
       setResult(res);
     } catch (err) {
-      alert("Database connection failed");
+      console.error(err);
+      alert("DB connection failed");
     }
   };
 
@@ -44,15 +40,17 @@ export default function Dashboard({ onLogout }) {
   const handleUpload = async (e) => {
     try {
       const files = e.target.files;
-      if (!files.length) return;
+      if (!files || files.length === 0) return;
 
       const res = await uploadCSV(files);
 
-      if (res.session_id) setSessionId(res.session_id);
-      if (res.schema) setSchema(res.schema);
+      console.log("UPLOAD RESPONSE:", res);
 
+      setSessionId(res?.session_id || null);
+      setSchema(res?.schema || res?.tables || {});
       setResult(res);
     } catch (err) {
+      console.error(err);
       alert("Upload failed");
     }
   };
@@ -61,37 +59,40 @@ export default function Dashboard({ onLogout }) {
 
   const handleQuery = async () => {
     if (!sessionId) {
-      alert("Connect DB or Upload first");
+      alert("Upload or connect DB first");
       return;
     }
 
     setLoading(true);
 
-    const res = await runQuery({
-      question,
-      session_id: sessionId
-    });
+    try {
+      const res = await runQuery({
+        question,
+        session_id: sessionId,
+      });
+
+      console.log("QUERY RESPONSE:", res);
+
+      setResult(res);
+      setSQL(res?.sql || "");
+    } catch (err) {
+      console.error(err);
+      alert("Query failed");
+    }
 
     setLoading(false);
-
-    setResult(res);
-    setSQL(res?.sql || "");
-
-    setHistory([
-      { question, sql: res?.sql || "", time: new Date().toLocaleTimeString() },
-      ...history
-    ]);
   };
 
-  // ---------- TABLE ----------
+  // ---------- RESULT TABLE ----------
 
   const renderTable = () => {
-    if (!result?.data || !Array.isArray(result.data)) return null;
+    if (!result?.data || !Array.isArray(result.data)) {
+      return <div>No result</div>;
+    }
 
-    const rows = result.data;
-    if (!rows.length) return <div>No data</div>;
+    if (result.data.length === 0) return <div>No rows</div>;
 
-    const cols = Object.keys(rows[0]);
+    const cols = Object.keys(result.data[0]);
 
     return (
       <table className="table">
@@ -103,10 +104,10 @@ export default function Dashboard({ onLogout }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r, i) => (
+          {result.data.map((row, i) => (
             <tr key={i}>
               {cols.map((c) => (
-                <td key={c}>{r[c]}</td>
+                <td key={c}>{String(row[c])}</td>
               ))}
             </tr>
           ))}
@@ -118,22 +119,28 @@ export default function Dashboard({ onLogout }) {
   // ---------- SCHEMA ----------
 
   const renderSchema = () => {
-    if (!schema) return <div>No schema loaded</div>;
+    if (!schema || typeof schema !== "object") {
+      return <div>No schema</div>;
+    }
 
-    return Object.entries(schema).map(([table, cols]) => (
-      <div key={table} className="schemaCard">
-        <b>{table}</b>
-        {Array.isArray(cols) &&
-          cols.map((c, i) => <div key={i}>{c}</div>)}
-      </div>
-    ));
+    return Object.keys(schema).map((table) => {
+      const cols = schema[table];
+
+      return (
+        <div key={table} className="schemaCard">
+          <b>{table}</b>
+
+          {Array.isArray(cols) &&
+            cols.map((c, i) => <div key={i}>{String(c)}</div>)}
+        </div>
+      );
+    });
   };
 
   return (
     <div className="page">
-      {/* HEADER */}
       <div className="header">
-        <h2>🚀 ZeroCost Text-to-SQL</h2>
+        <h2>🚀 AI Text-to-SQL</h2>
         <button onClick={onLogout}>Logout</button>
       </div>
 
@@ -199,7 +206,7 @@ export default function Dashboard({ onLogout }) {
           <div className="card">
             <textarea
               rows={4}
-              placeholder="Ask your question..."
+              placeholder="Ask a question..."
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
             />
@@ -227,13 +234,12 @@ export default function Dashboard({ onLogout }) {
           </div>
 
           <div className="card">
-            <h4>History</h4>
-            {history.map((h, i) => (
-              <div key={i} className="historyItem">
-                {h.question}
-                <small>{h.time}</small>
-              </div>
-            ))}
+            <h4>Raw Response</h4>
+            <pre>
+              {result
+                ? JSON.stringify(result, null, 2)
+                : "No response"}
+            </pre>
           </div>
         </div>
       </div>
