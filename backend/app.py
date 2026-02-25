@@ -14,7 +14,6 @@ from pandasql import sqldf
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 
-# ===== AUTH IMPORTS =====
 from database import SessionLocal, engine, Base
 import models, auth
 
@@ -25,18 +24,19 @@ load_dotenv()
 
 app = FastAPI()
 
-# Create user table
 Base.metadata.create_all(bind=engine)
+
 
 # ================= CORS =================
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],   # allow all for now
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # ================= DB DEPENDENCY =================
 
@@ -48,22 +48,27 @@ def get_db():
         db.close()
 
 
-# ================= AI CLIENT =================
+# ================= AI CLIENT FUNCTION =================
 
-client = None
-groq_key = os.getenv("GROQ_API_KEY")
+def get_ai_client():
+    groq_key = os.getenv("GROQ_API_KEY")
 
-if groq_key:
+    if not groq_key:
+        print("❌ GROQ_API_KEY not found in environment")
+        return None
+
     try:
         client = Groq(api_key=groq_key)
+        return client
     except Exception as e:
-        print("Groq initialization failed:", e)
-        client = None
+        print("❌ Groq initialization failed:", e)
+        return None
 
 
 # ================= SESSION STORAGE =================
 
 sessions = {}
+
 
 # ================= HOME =================
 
@@ -71,12 +76,13 @@ sessions = {}
 def home():
     return {"message": "API Running"}
 
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
 
 
-# ================= AUTH APIs =================
+# ================= AUTH =================
 
 @app.post("/api/signup")
 def signup(data: dict):
@@ -85,21 +91,21 @@ def signup(data: dict):
     password = data.get("password")
 
     if not email or not password:
-        raise HTTPException(status_code=400, detail="Email and password required")
+        raise HTTPException(400, "Email and password required")
 
     db = SessionLocal()
 
     existing = db.query(models.User).filter(models.User.email == email).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail="User already exists")
+        raise HTTPException(400, "User already exists")
 
-    hashed_pw = auth.hash_password(str(password))   # 🔥 ensure string
+    hashed_pw = auth.hash_password(str(password))
 
     user = models.User(
-    email=email,
-    password_hash=hashed_pw
-)
+        email=email,
+        password_hash=hashed_pw
+    )
 
     db.add(user)
     db.commit()
@@ -186,20 +192,15 @@ def connect_database(config: dict):
             return {"error": "Unsupported database"}
 
         engine_db = create_engine(url)
-
         inspector = inspect(engine_db)
 
         schema = {}
 
         for table_name in inspector.get_table_names():
-
             columns = inspector.get_columns(table_name)
 
             schema[table_name] = [
-                {
-                    "name": col["name"],
-                    "type": str(col["type"])
-                }
+                {"name": col["name"], "type": str(col["type"])}
                 for col in columns
             ]
 
@@ -235,9 +236,10 @@ def run_query(data: dict):
 
     schema = session.get("schema")
 
-    # ---------- AI disabled fallback ----------
+    client = get_ai_client()
+
     if not client:
-        return {"error": "AI client not configured"}
+        return {"error": "AI client not configured — check GROQ_API_KEY"}
 
     prompt = f"""
 You are an expert data analyst.
@@ -286,10 +288,8 @@ Return ONLY valid JSON:
             "sql": sql,
             "explanation": explanation,
             "chart": chart_type,
-            "disclaimer": "Only SELECT queries supported in demo",
-            "execution_result": [
-                {"message": "Data modification queries are not supported."}
-            ]
+            "disclaimer": "Only SELECT queries supported",
+            "execution_result": [{"message": "Only SELECT allowed"}]
         }
 
     # ---------- Execute Query ----------
@@ -323,6 +323,5 @@ Return ONLY valid JSON:
         "sql": sql,
         "explanation": explanation,
         "chart": chart_type,
-        "disclaimer": "Verify before production",
         "execution_result": execution_result
     }
