@@ -222,7 +222,7 @@ const renderSchema = () => {
               onChange={(e) => setQuestion(e.target.value)}
             />
 
-            <button onClick={handleQuery}>
+            <button onClick={handleQuery} disabled={!sessionId}>
               {loading ? "Running..." : "Run Query"}
             </button>
           </div>
