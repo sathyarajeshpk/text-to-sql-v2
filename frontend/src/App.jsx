@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import Login from "./Login";
+import Signup from "./Signup";
 import Dashboard from "./Dashboard";
 
 export default function App() {
   const [token, setToken] = useState(null);
+  const [mode, setMode] = useState("login");
 
   useEffect(() => {
     const t = localStorage.getItem("token");
@@ -21,7 +23,19 @@ export default function App() {
   };
 
   if (!token) {
-    return <Login onLogin={handleLogin} />;
+    if (mode === "login")
+      return (
+        <Login
+          onLogin={handleLogin}
+          switchSignup={() => setMode("signup")}
+        />
+      );
+
+    return (
+      <Signup
+        switchLogin={() => setMode("login")}
+      />
+    );
   }
 
   return <Dashboard onLogout={handleLogout} />;

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { login } from "./api";
 
-export default function Login({ onLogin }) {
+export default function Login({ onLogin, switchSignup }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -12,7 +12,7 @@ export default function Login({ onLogin }) {
       localStorage.setItem("token", res.access_token);
       onLogin();
     } else {
-      alert(res.detail || "Login failed");
+      alert("Login failed");
     }
   };
 
@@ -25,7 +25,6 @@ export default function Login({ onLogin }) {
         value={email}
         onChange={(e) => setEmail(e.target.value)}
       />
-      <br />
 
       <input
         placeholder="Password"
@@ -33,9 +32,15 @@ export default function Login({ onLogin }) {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      <br />
 
       <button onClick={handleLogin}>Login</button>
+
+      <p>
+        No account?{" "}
+        <button onClick={switchSignup}>
+          Signup
+        </button>
+      </p>
     </div>
   );
 }

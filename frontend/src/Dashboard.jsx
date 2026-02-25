@@ -1,74 +1,161 @@
 import { useState } from "react";
+import {
+  connectDatabase,
+  uploadCSV,
+  runQuery
+} from "./api";
 
 export default function Dashboard({ onLogout }) {
+  const [tab, setTab] = useState("database");
+  const [sessionId, setSessionId] = useState(null);
+
+  const [dbConfig, setDbConfig] = useState({
+    host: "",
+    port: "",
+    database: "",
+    user: "",
+    password: ""
+  });
+
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const runQuery = async () => {
-    const token = localStorage.getItem("token");
+  // ---------- CONNECT DB ----------
 
-    setLoading(true);
-    setResult(null);
+  const handleConnectDB = async () => {
+    const res = await connectDatabase(dbConfig);
+    setSessionId(res.session_id);
+    setResult(res);
+  };
 
-    try {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/query`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ question }),
-        }
-      );
+  // ---------- UPLOAD CSV ----------
 
-      const data = await res.json();
-      setResult(data);
-    } catch (err) {
-      setResult({ error: "Failed to fetch" });
+  const handleUpload = async (e) => {
+    const res = await uploadCSV(e.target.files);
+    setSessionId(res.session_id);
+    setResult(res);
+  };
+
+  // ---------- QUERY ----------
+
+  const handleQuery = async () => {
+    if (!sessionId) {
+      alert("Connect DB or Upload files first");
+      return;
     }
 
+    setLoading(true);
+
+    const res = await runQuery({
+      question,
+      session_id: sessionId
+    });
+
+    setResult(res);
     setLoading(false);
   };
 
   return (
-    <div style={{ padding: 40, maxWidth: 900 }}>
-      <h2>ZeroCost Text-to-SQL 🚀</h2>
+    <div style={{ padding: 30, color: "white" }}>
+      <h2>🚀 AI Text-to-SQL</h2>
 
-      <button onClick={onLogout} style={{ marginBottom: 20 }}>
-        Logout
-      </button>
+      <button onClick={onLogout}>Logout</button>
 
-      <div style={{ marginBottom: 20 }}>
+      {/* ---------- TABS ---------- */}
+
+      <div style={{ marginTop: 20 }}>
+        <button onClick={() => setTab("upload")}>Upload</button>
+        <button onClick={() => setTab("database")}>Database</button>
+      </div>
+
+      {/* ---------- DATABASE ---------- */}
+
+      {tab === "database" && (
+        <div style={{ marginTop: 20 }}>
+          <input
+            placeholder="Host"
+            value={dbConfig.host}
+            onChange={(e) =>
+              setDbConfig({ ...dbConfig, host: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Port"
+            value={dbConfig.port}
+            onChange={(e) =>
+              setDbConfig({ ...dbConfig, port: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Database"
+            value={dbConfig.database}
+            onChange={(e) =>
+              setDbConfig({ ...dbConfig, database: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="User"
+            value={dbConfig.user}
+            onChange={(e) =>
+              setDbConfig({ ...dbConfig, user: e.target.value })
+            }
+          />
+
+          <input
+            placeholder="Password"
+            type="password"
+            value={dbConfig.password}
+            onChange={(e) =>
+              setDbConfig({ ...dbConfig, password: e.target.value })
+            }
+          />
+
+          <button onClick={handleConnectDB}>
+            Connect Database
+          </button>
+        </div>
+      )}
+
+      {/* ---------- UPLOAD ---------- */}
+
+      {tab === "upload" && (
+        <div style={{ marginTop: 20 }}>
+          <input type="file" multiple onChange={handleUpload} />
+        </div>
+      )}
+
+      {/* ---------- QUERY ---------- */}
+
+      <div style={{ marginTop: 30 }}>
         <textarea
-          placeholder="Ask your question... (e.g. Show top 10 customers)"
+          placeholder="Ask your question..."
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           rows={4}
-          style={{ width: "100%", padding: 10 }}
+          style={{ width: "100%" }}
         />
+
+        <button onClick={handleQuery}>
+          {loading ? "Running..." : "Run Query"}
+        </button>
       </div>
 
-      <button onClick={runQuery} disabled={loading}>
-        {loading ? "Running..." : "Run Query"}
-      </button>
+      {/* ---------- RESULT ---------- */}
 
       {result && (
-        <div style={{ marginTop: 30 }}>
-          <h3>Result</h3>
-          <pre
-            style={{
-              background: "#111",
-              padding: 15,
-              borderRadius: 8,
-              overflow: "auto",
-            }}
-          >
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
+        <pre
+          style={{
+            background: "#111",
+            padding: 15,
+            marginTop: 20
+          }}
+        >
+          {JSON.stringify(result, null, 2)}
+        </pre>
       )}
     </div>
   );
