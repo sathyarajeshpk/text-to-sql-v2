@@ -6,7 +6,7 @@ export default function Dashboard({ onLogout }) {
   useEffect(() => {
     const token = localStorage.getItem("token");
 
-    fetch(`${import.meta.env.VITE_API_URL}/me`, {
+    fetch(`${import.meta.env.VITE_API_URL}/api/health`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
